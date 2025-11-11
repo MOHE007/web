@@ -95,6 +95,11 @@ for news in sample_news:
 def read_root():
     return {"message": "News Service API", "version": "1.0.0"}
 
+# 健康检查端点，供网关与监控使用
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "news"}
+
 # 翻译工具：将文本转译为中文
 async def translate_to_zh(text: Optional[str], source_lang: Optional[str] = None) -> Optional[str]:
     """使用 MyMemory API 将文本转译为中文。

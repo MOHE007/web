@@ -25,4 +25,5 @@ def collect_data(url: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8004)
+    # 统一端口：collector 使用 8005，避免与 cleaner (8004) 冲突
+    uvicorn.run(app, host="0.0.0.0", port=8005)

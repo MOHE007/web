@@ -15,6 +15,9 @@ default_origins = [
     "http://127.0.0.1:3000",
     "http://localhost:5500",
     "http://127.0.0.1:5500",
+    # 生产站点域名（前端注入为 https://api.wakolanews.online）
+    "https://wakolanews.online",
+    "https://api.wakolanews.online",
 ]
 env_origins = os.getenv("GATEWAY_ALLOW_ORIGINS", "").strip()
 allow_origins = default_origins
@@ -32,7 +35,8 @@ app.add_middleware(
 
 # 微服务地址配置（支持环境变量覆盖）
 SERVICE_URLS = {
-    "collector": os.getenv("COLLECTOR_URL", "http://127.0.0.1:8000"),
+    # 注意：collector 不能与网关同端口，改为 8005
+    "collector": os.getenv("COLLECTOR_URL", "http://127.0.0.1:8005"),
     "parser": os.getenv("PARSER_URL", "http://127.0.0.1:8002"),
     "cleaner": os.getenv("CLEANER_URL", "http://127.0.0.1:8004"),
     "news": os.getenv("NEWS_URL", "http://127.0.0.1:8001"),
@@ -161,7 +165,18 @@ async def news_proxy(request: Request, path: str):
             params["keyword"] = params.pop("search")
         # 移除前端分页参数避免后端误识别
         params.pop("page", None)
-    
+
+    # 特例：news-service 中的非 /news 前缀端点需要直通映射
+    # /news/import/* -> /import/*, /news/top -> /top, /news/rescore -> /rescore, /news/score/{id} -> /score/{id}
+    if path.startswith("import/"):
+        return await call_service("news", f"/{path}", method, data=data, params=params)
+    if path == "top":
+        return await call_service("news", "/top", method, data=data, params=params)
+    if path == "rescore":
+        return await call_service("news", "/rescore", method, data=data, params=params)
+    if path.startswith("score/"):
+        return await call_service("news", f"/{path}", method, data=data, params=params)
+
     return await call_service("news", f"/news/{path}", method, data=data, params=params)
 
 # 兼容根路径 /news 的代理（避免重定向问题）
@@ -180,6 +195,31 @@ async def news_root_proxy(request: Request):
             params["keyword"] = params.pop("search")
         params.pop("page", None)
     return await call_service("news", "/news", method, data=data, params=params)
+
+# 兼容新闻服务的导入与评分等非 /news 前缀端点
+@app.get("/news/import/google_news")
+async def news_import_google_proxy(request: Request):
+    params = dict(request.query_params)
+    return await call_service("news", "/import/google_news", "GET", params=params)
+
+@app.get("/news/import/newsminimalist")
+async def news_import_minimalist_proxy(request: Request):
+    params = dict(request.query_params)
+    return await call_service("news", "/import/newsminimalist", "GET", params=params)
+
+@app.get("/news/top")
+async def news_top_proxy(request: Request):
+    params = dict(request.query_params)
+    return await call_service("news", "/top", "GET", params=params)
+
+@app.post("/news/rescore")
+async def news_rescore_proxy(request: Request):
+    params = dict(request.query_params)
+    return await call_service("news", "/rescore", "POST", params=params)
+
+@app.post("/news/score/{news_id}")
+async def news_score_proxy(news_id: str):
+    return await call_service("news", f"/score/{news_id}", "POST")
 
 # 分类服务路由
 @app.api_route("/categories/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])

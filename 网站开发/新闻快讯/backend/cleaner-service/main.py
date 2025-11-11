@@ -88,21 +88,21 @@ def clean_data(item: NewsItem):
     
     # 检查是否重复
     if content_hash and content_hash in deduplication_store:
-        return CleanResult(
-            cleaned_item=None,
-            is_duplicate=True,
-            duplicate_of=deduplication_store[content_hash]
-        )
+        return {
+            "cleaned_item": None,
+            "is_duplicate": True,
+            "duplicate_of": deduplication_store[content_hash],
+        }
     
     # 存储哈希（使用URL作为标识）
     if content_hash:
         deduplication_store[content_hash] = item.url
     
-    return CleanResult(
-        cleaned_item=cleaned_item,
-        is_duplicate=False,
-        duplicate_of=None
-    )
+    return {
+        "cleaned_item": cleaned_item.dict() if cleaned_item else None,
+        "is_duplicate": False,
+        "duplicate_of": None,
+    }
 
 @app.get("/stats")
 def get_cleaning_stats():
