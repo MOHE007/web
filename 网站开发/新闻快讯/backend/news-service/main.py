@@ -204,6 +204,24 @@ def _categorize_title(title: str) -> str:
                 return cat
     return "综合"
 
+DEFAULT_INCLUDE = {
+    "en": ["world", "politics", "technology", "business"],
+    "zh": ["world", "politics", "technology", "business"],
+    "fr": ["world", "politics", "technology", "business"],
+    "de": ["world", "politics", "technology", "business"],
+    "es": ["world", "politics", "technology", "business"],
+    "it": ["world", "politics", "technology", "business"],
+    "ru": ["world", "politics", "technology", "business"],
+    "uk": ["world", "politics", "technology", "business"],
+    "sv": ["world", "politics", "technology", "business"],
+    "el": ["world", "politics", "technology", "business"],
+    "ar": ["world", "politics", "technology", "business"],
+    "hi": ["world", "politics", "technology", "business"],
+}
+DEFAULT_EXCLUDE = {
+    "*": ["entertainment", "sports"],
+}
+
 async def fetch_google_news(lang: str = "en", limit: int = 20, q: Optional[str] = None, include: Optional[List[str]] = None, exclude: Optional[List[str]] = None) -> List[dict]:
     base = LANG_FEEDS.get(lang, LANG_FEEDS["en"])
     # Google News 搜索需要 /rss/search
@@ -220,9 +238,11 @@ async def fetch_google_news(lang: str = "en", limit: int = 20, q: Optional[str] 
             continue
         title_zh = await translate_to_zh(title, source_lang=lang)
         category = _categorize_title(title)
-        # 过滤逻辑：优先 include（如存在），其次 exclude；默认排除娱乐、体育
-        exclude_set = set((exclude or ["entertainment", "sports"]))
-        include_set = set(include or [])
+        # 过滤逻辑：按语言默认 include/exclude，如果传入参数则覆盖默认
+        default_inc = set(DEFAULT_INCLUDE.get(lang, DEFAULT_INCLUDE.get("en", [])))
+        default_exc = set(DEFAULT_EXCLUDE.get(lang, DEFAULT_EXCLUDE.get("*", [])))
+        include_set = set(include or default_inc)
+        exclude_set = set(exclude or default_exc)
         if include_set and category not in include_set:
             continue
         if category in exclude_set:

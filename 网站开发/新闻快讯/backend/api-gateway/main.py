@@ -32,11 +32,11 @@ app.add_middleware(
 
 # 微服务地址配置（支持环境变量覆盖）
 SERVICE_URLS = {
-    "collector": os.getenv("COLLECTOR_URL", "http://127.0.0.1:8004"),
+    "collector": os.getenv("COLLECTOR_URL", "http://127.0.0.1:8000"),
     "parser": os.getenv("PARSER_URL", "http://127.0.0.1:8002"),
-    "cleaner": os.getenv("CLEANER_URL", "http://127.0.0.1:8003"),
+    "cleaner": os.getenv("CLEANER_URL", "http://127.0.0.1:8004"),
     "news": os.getenv("NEWS_URL", "http://127.0.0.1:8001"),
-    "category": os.getenv("CATEGORY_URL", "http://127.0.0.1:8005"),
+    "category": os.getenv("CATEGORY_URL", "http://127.0.0.1:8003"),
 }
 
 class CollectRequest(BaseModel):
