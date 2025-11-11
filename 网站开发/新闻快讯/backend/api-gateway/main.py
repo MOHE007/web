@@ -5,30 +5,38 @@ from pydantic import BaseModel
 from typing import Optional, List
 import httpx
 import asyncio
+import os
 
 app = FastAPI()
 
-# CORS 配置，允许前端站点访问
+# CORS 配置（支持环境变量覆盖）
+default_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+]
+env_origins = os.getenv("GATEWAY_ALLOW_ORIGINS", "").strip()
+allow_origins = default_origins
+if env_origins:
+    # 逗号分隔的域名列表
+    allow_origins = [o.strip() for o in env_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5500",
-        "http://127.0.0.1:5500",
-    ],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 微服务地址配置
+# 微服务地址配置（支持环境变量覆盖）
 SERVICE_URLS = {
-    "collector": "http://127.0.0.1:8004",
-    "parser": "http://127.0.0.1:8002",
-    "cleaner": "http://127.0.0.1:8003",
-    "news": "http://127.0.0.1:8001",
-    "category": "http://127.0.0.1:8005"
+    "collector": os.getenv("COLLECTOR_URL", "http://127.0.0.1:8004"),
+    "parser": os.getenv("PARSER_URL", "http://127.0.0.1:8002"),
+    "cleaner": os.getenv("CLEANER_URL", "http://127.0.0.1:8003"),
+    "news": os.getenv("NEWS_URL", "http://127.0.0.1:8001"),
+    "category": os.getenv("CATEGORY_URL", "http://127.0.0.1:8005"),
 }
 
 class CollectRequest(BaseModel):
