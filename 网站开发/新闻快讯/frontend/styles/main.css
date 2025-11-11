@@ -68,8 +68,10 @@ body {
     color: var(--primary-color);
 }
 
-.nav-brand i {
-    font-size: 24px;
+.nav-logo {
+    height: 24px;
+    width: auto;
+    display: inline-block;
 }
 
 .nav-menu {
