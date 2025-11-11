@@ -1,5 +1,22 @@
 // API 配置
-const API_BASE_URL = 'http://127.0.0.1:8000';
+// 生产默认指向 Render 网关占位地址；本地开发自动使用 127.0.0.1
+// 支持通过 window.__API_BASE__ 在运行时覆盖（例如在 index.html 中设置）。
+const API_BASE_URL = (() => {
+    try {
+        const override = typeof window !== 'undefined' ? window.__API_BASE__ : null;
+        if (override && typeof override === 'string' && override.trim().length > 0) {
+            return override.trim();
+        }
+        const host = (typeof location !== 'undefined' && location.hostname) ? location.hostname : '';
+        if (host === 'localhost' || host === '127.0.0.1') {
+            return 'http://127.0.0.1:8000';
+        }
+        return 'https://your-gateway.onrender.com';
+    } catch (_) {
+        // 回退到本地开发地址
+        return 'http://127.0.0.1:8000';
+    }
+})();
 
 // API 请求封装
 class API {

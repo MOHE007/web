@@ -82,7 +82,48 @@ frontend/
    ```
 
 3. **访问应用**
-   打开浏览器访问: http://localhost:3000
+打开浏览器访问: http://localhost:3000
+
+## 部署到 Render
+
+> 本项目前端为纯静态资源，建议托管在 GitHub Pages 或 Render Static Site；后端为 FastAPI 微服务，建议托管在 Render Web Service。
+
+### 前端部署（两种方案）
+- GitHub Pages（推荐）：
+  - 将仓库设置 Pages，来源选择 `main` 分支下的 `frontend` 目录。
+  - 无构建步骤，发布目录为 `frontend`。
+- Render Static Site：
+  - 新建 Static Site，连接 GitHub 仓库。
+  - Root Directory 设为 `frontend`，Build Command 留空，Publish Directory 填 `frontend`。
+
+### 后端部署（Render Web Service）
+- 为以下服务分别创建 Web Service（Python）：
+  - `backend/api-gateway`（统一对外暴露）
+  - `backend/news-service`
+  - `backend/category-service`
+  - `backend/parser-service`
+  - `backend/cleaner-service`
+- Start Command：`uvicorn main:app --host 0.0.0.0 --port $PORT`
+- 环境变量：
+  - 如需跨服务调用，请在网关或服务中配置目标服务的 Render 地址。
+  - 在网关开启 CORS，允许前端的域名（GitHub Pages 或 Render 静态站点）。
+
+### 前端 API_BASE 配置
+- 生产默认指向占位地址：`https://your-gateway.onrender.com`
+- 支持在 `index.html` 中通过全局变量覆盖：
+
+  ```html
+  <!-- 在加载 js 之前设置 -->
+  <script>
+    window.__API_BASE__ = 'https://your-gateway.onrender.com';
+  </script>
+  ```
+
+- 本地开发会自动使用 `http://127.0.0.1:8000`。
+
+### 验证部署
+- 前端：打开静态站点 URL，确保首页加载正常。
+- 后端：访问 `GET /health` 返回正常状态；前端调用 `/news`、`/categories/tree` 不返回 503。
 
 ## API 接口
 
