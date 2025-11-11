@@ -7,6 +7,10 @@
     <link rel="stylesheet" href="styles/main.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- 生产网关地址注入（Cloudflare 代理 GitHub Pages 场景） -->
+    <script>
+        window.__API_BASE__ = window.__API_BASE__ || 'https://api.wakolanews.online';
+    </script>
 </head>
 <body>
     <div id="app">
@@ -14,8 +18,8 @@
         <nav class="navbar">
             <div class="nav-container">
                 <div class="nav-brand">
-                    <i class="fas fa-newspaper"></i>
-                    <span>新闻快讯</span>
+                    <img src="assets/logo.svg" alt="wakolaNews logo" class="nav-logo">
+                    <span>瓦卡拉NEWs</span>
                 </div>
                 <div class="nav-menu">
                     <a href="#" class="nav-link active" data-category="all">全部</a>
