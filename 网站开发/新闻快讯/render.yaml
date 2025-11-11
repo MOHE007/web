@@ -1,0 +1,60 @@
+services:
+  - type: web
+    name: api-gateway
+    env: python
+    rootDirectory: backend/api-gateway
+    buildCommand: ""
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+    envVars:
+      - key: GATEWAY_ALLOW_ORIGINS
+        value: https://your-pages.github.io,https://your-static.onrender.com
+      - key: COLLECTOR_URL
+        value: https://collector-service.onrender.com
+      - key: PARSER_URL
+        value: https://parser-service.onrender.com
+      - key: CLEANER_URL
+        value: https://cleaner-service.onrender.com
+      - key: NEWS_URL
+        value: https://news-service.onrender.com
+      - key: CATEGORY_URL
+        value: https://category-service.onrender.com
+
+  - type: web
+    name: news-service
+    env: python
+    rootDirectory: backend/news-service
+    buildCommand: ""
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+
+  - type: web
+    name: category-service
+    env: python
+    rootDirectory: backend/category-service
+    buildCommand: ""
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+
+  - type: web
+    name: parser-service
+    env: python
+    rootDirectory: backend/parser-service
+    buildCommand: ""
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+
+  - type: web
+    name: cleaner-service
+    env: python
+    rootDirectory: backend/cleaner-service
+    buildCommand: ""
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+
+  - type: static_site
+    name: frontend
+    rootDirectory: frontend
+    buildCommand: ""
+    staticPublishPath: .
+    autoDeploy: true
