@@ -1,6 +1,4 @@
 // API 配置
-// 生产默认指向 Render 网关占位地址；本地开发自动使用 127.0.0.1
-// 支持通过 window.__API_BASE__ 在运行时覆盖（例如在 index.html 中设置）。
 const API_BASE_URL = (() => {
     try {
         const override = typeof window !== 'undefined' ? window.__API_BASE__ : null;
@@ -11,14 +9,12 @@ const API_BASE_URL = (() => {
         if (host === 'localhost' || host === '127.0.0.1') {
             return 'http://127.0.0.1:8000';
         }
-        return 'https://your-gateway.onrender.com';
+        return 'https://api.wakolanews.online';
     } catch (_) {
-        // 回退到本地开发地址
         return 'http://127.0.0.1:8000';
     }
 })();
 
-// API 请求封装
 class API {
     constructor() {
         this.baseURL = API_BASE_URL;
@@ -34,88 +30,52 @@ class API {
             ...options
         };
 
+        // DNS 不通时静默降级，不抛到控制台
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 5000);
         try {
-            const response = await fetch(url, config);
-            
+            const response = await fetch(url, { ...config, signal: controller.signal });
+            clearTimeout(id);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
             return await response.json();
-        } catch (error) {
-            console.error('API request failed:', error);
-            throw error;
+        } catch (_) {
+            clearTimeout(id);
+            return null;
         }
     }
 
-    // 新闻相关 API
-    async getNews(category = null, page = 1, limit = 20, search = '') {
+    // 获取新闻列表
+    async getNews(page = 1, limit = 50) {
         const params = new URLSearchParams();
-        if (category && category !== 'all') params.append('category', category);
         if (page > 1) params.append('page', page);
         if (limit !== 20) params.append('limit', limit);
-        if (search) params.append('search', search);
-        
         return this.request(`/news?${params.toString()}`);
     }
 
-    async getNewsById(id) {
-        return this.request(`/news/${id}`);
+    // 获取高分新闻
+    async getTopNews(minScore = 5.0, limit = 50) {
+        const params = new URLSearchParams();
+        params.append('min_score', minScore);
+        params.append('limit', limit);
+        return this.request(`/news/top?${params.toString()}`);
     }
 
-    async createNews(newsData) {
-        return this.request('/news', {
-            method: 'POST',
-            body: JSON.stringify(newsData)
-        });
+    // 导入 Google News
+    async importGoogleNews(lang = 'zh', limit = 30) {
+        const params = new URLSearchParams();
+        params.append('lang', lang);
+        params.append('limit', limit);
+        params.append('score', 'true');
+        return this.request(`/news/import/google_news?${params.toString()}`);
     }
 
-    async updateNews(id, newsData) {
-        return this.request(`/news/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(newsData)
-        });
-    }
-
-    async deleteNews(id) {
-        return this.request(`/news/${id}`, {
-            method: 'DELETE'
-        });
-    }
-
-    // 分类相关 API
-    async getCategories() {
-        return this.request('/categories');
-    }
-
-    async getCategoryTree() {
-        return this.request('/categories/tree');
-    }
-
-    async getCategoryById(id) {
-        return this.request(`/categories/${id}`);
-    }
-
-    async createCategory(categoryData) {
-        return this.request('/categories', {
-            method: 'POST',
-            body: JSON.stringify(categoryData)
-        });
-    }
-
-    // 新闻处理 API
-    async processNews(url, type = 'full') {
-        const endpointMap = {
-            'full': '/process-news',
-            'collect': '/process-news',
-            'parse': '/process-news',
-            'clean': '/process-news'
-        };
-        
-        return this.request(endpointMap[type], {
-            method: 'POST',
-            body: JSON.stringify({ url })
-        });
+    // 导入 News Minimalist
+    async importNewsMinimalist(limit = 30) {
+        const params = new URLSearchParams();
+        params.append('limit', limit);
+        return this.request(`/news/import/newsminimalist?${params.toString()}`);
     }
 
     // 健康检查
@@ -124,8 +84,5 @@ class API {
     }
 }
 
-// 创建 API 实例
-const api = new API();
-
-// 导出 API 实例
-window.API = api;
+// 创建全局 API 实例
+window.API = new API();

@@ -1,366 +1,178 @@
-// 新闻管理类
+// 新闻管理 — News Minimalist 风格
 class NewsManager {
     constructor() {
-        this.news = [];
-        this.currentPage = 1;
-        this.totalPages = 1;
-        this.pageSize = 20;
-        this.currentCategory = 'all';
-        this.searchQuery = '';
-        this.viewMode = 'grid';
+        this.items = [];
         this.loading = false;
-        
         this.init();
     }
 
-    init() {
-        this.bindEvents();
-        this.loadNews();
-        this.loadCategories();
+    async init() {
+        await this.waitForAPI();
+        this.feedEl = document.getElementById('news-feed');
+        this.renderLoading();
+        await this.loadNews();
     }
 
-    bindEvents() {
-        // 分类导航事件
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.switchCategory(link.dataset.category);
-            });
-        });
-
-        // 搜索事件
-        const searchBtn = document.getElementById('searchBtn');
-        const searchInput = document.getElementById('searchInput');
-        
-        searchBtn.addEventListener('click', () => this.handleSearch());
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.handleSearch();
-        });
-
-        // 刷新按钮
-        document.getElementById('refreshBtn').addEventListener('click', () => {
-            this.refreshNews();
-        });
-
-        // 视图切换
-        document.querySelectorAll('.view-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.switchView(btn.dataset.view);
-            });
-        });
-
-        // 分页事件
-        document.getElementById('prevPage').addEventListener('click', () => {
-            if (this.currentPage > 1) {
-                this.goToPage(this.currentPage - 1);
-            }
-        });
-
-        document.getElementById('nextPage').addEventListener('click', () => {
-            if (this.currentPage < this.totalPages) {
-                this.goToPage(this.currentPage + 1);
-            }
-        });
-
-        // 新闻卡片点击事件（事件委托）
-        document.getElementById('newsContainer').addEventListener('click', (e) => {
-            const card = e.target.closest('.news-card');
-            if (card) {
-                const newsId = card.dataset.id;
-                this.showNewsDetail(newsId);
-            }
+    waitForAPI() {
+        return new Promise(resolve => {
+            const check = () => {
+                if (window.API) resolve();
+                else setTimeout(check, 100);
+            };
+            check();
         });
     }
 
-    async loadNews(category = 'all', page = 1) {
-        if (!window.API) {
-            setTimeout(() => this.loadNews(category, page), 100);
-            return;
-        }
-        this.setLoading(true);
-        
+    // ----- 数据加载 -----
+    async loadNews() {
+        this.loading = true;
+        this.renderLoading();
+
+        let newsData = [];
+
+        // Try API first, fallback to sample data
         try {
-            const response = await window.API.getNews(
-                this.currentCategory,
-                this.currentPage,
-                this.pageSize,
-                this.searchQuery
-            );
-            
-            this.news = response;
-            this.renderNews();
-            this.updatePagination();
-            
-        } catch (error) {
-            console.error('加载新闻失败:', error);
-            this.showError('加载新闻失败，请稍后重试');
-        } finally {
-            this.setLoading(false);
+            const health = await window.API.healthCheck().catch(() => null);
+            if (health) {
+                // Try to import news first, then get the list
+                try {
+                    await window.API.importGoogleNews('zh', 30);
+                } catch (_) { /* ignore import errors */ }
+
+                try {
+                    await window.API.importNewsMinimalist(30);
+                } catch (_) { /* ignore import errors */ }
+
+                const data = await window.API.getNews(1, 50);
+                if (Array.isArray(data)) {
+                    newsData = data;
+                } else if (data && Array.isArray(data.news)) {
+                    newsData = data.news;
+                } else if (data && Array.isArray(data.data)) {
+                    newsData = data.data;
+                }
+            }
+        } catch (_) { /* fallback to sample */ }
+
+        if (newsData.length === 0) {
+            newsData = this.getSampleNews();
         }
+
+        this.items = newsData;
+        this.loading = false;
+        this.render();
     }
 
-    async loadCategories() {
-        try {
-            const categories = await window.API.getCategoryTree();
-            this.renderCategoryTree(categories);
-        } catch (error) {
-            console.error('加载分类失败:', error);
-        }
-    }
-
-    renderNews() {
-        const container = document.getElementById('newsContainer');
-        
-        if (this.news.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-newspaper"></i>
-                    <p>暂无新闻内容</p>
-                </div>
-            `;
+    // ----- 渲染 -----
+    render() {
+        if (this.items.length === 0) {
+            this.feedEl.innerHTML = '<div class="empty-state"><p>暂无新闻</p></div>';
             return;
         }
 
-        const newsHTML = this.news.map(news => this.createNewsCard(news)).join('');
-        container.innerHTML = newsHTML;
-        container.className = `news-container ${this.viewMode}-view`;
+        // Sort by significance_score descending (if available)
+        const sorted = [...this.items].sort((a, b) => {
+            const sa = a.significance_score ?? 0;
+            const sb = b.significance_score ?? 0;
+            return sb - sa;
+        });
+
+        const html = sorted.map(item => this.renderItem(item)).join('');
+        this.feedEl.innerHTML = html;
     }
 
-    createNewsCard(news) {
-        const publishTime = this.formatTime(news.publish_time);
-        const tagsHTML = news.tags.map(tag => `<span class="news-tag">${tag}</span>`).join('');
-        
+    renderItem(item) {
+        const score = item.significance_score ?? null;
+        const scoreClass = score !== null ? this.scoreClass(score) : 'no-score';
+        const scoreDot = score !== null
+            ? `<span class="score-dot ${scoreClass}" title="重要性: ${score}"></span>`
+            : '';
+
+        const title = this.escapeHtml(item.title || '无标题');
+        const url = item.url || '#';
+        const source = this.escapeHtml(item.source || '未知来源');
+        const timeStr = this.formatTime(item.publish_time);
+
         return `
-            <div class="news-card" data-id="${news.id}">
-                <div class="news-card-header">
-                    <h3 class="news-title">${news.title}</h3>
-                    <span class="news-category">${news.category}</span>
-                </div>
-                <p class="news-content">${news.content}</p>
+            <div class="news-item">
+                <a href="${url}" class="news-link" target="_blank" rel="noopener noreferrer">
+                    ${scoreDot}
+                    <span class="news-title">${title}</span>
+                </a>
                 <div class="news-meta">
-                    <span class="news-source">${news.source}</span>
-                    <span class="news-time">${publishTime}</span>
+                    <span>${source}</span>
+                    ${timeStr ? ` <span>·</span> <span>${timeStr}</span>` : ''}
                 </div>
-                <div class="news-tags">${tagsHTML}</div>
             </div>
         `;
     }
 
-    renderCategoryTree(categories) {
-        const container = document.getElementById('categoryTree');
-        
-        const renderTree = (items, level = 0) => {
-            return items.map(item => `
-                <div class="tree-item ${level > 0 ? 'tree-indent' : ''}" 
-                     data-category="${item.name}"
-                     style="padding-left: ${12 + level * 16}px">
-                    <i class="fas fa-${level === 0 ? 'folder' : 'file'}"></i>
-                    <span>${item.name}</span>
-                    ${item.children && item.children.length > 0 ? `(${item.children.length})` : ''}
-                </div>
-                ${item.children ? renderTree(item.children, level + 1) : ''}
-            `).join('');
-        };
-
-        container.innerHTML = renderTree(categories);
-        
-        // 绑定分类点击事件
-        container.querySelectorAll('.tree-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const category = item.dataset.category;
-                this.switchCategory(category);
-            });
-        });
+    renderLoading() {
+        this.feedEl.innerHTML = `
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+                <p>正在加载新闻...</p>
+            </div>
+        `;
     }
 
-    switchCategory(category) {
-        // 更新导航状态
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.remove('active');
-            if (link.dataset.category === category) {
-                link.classList.add('active');
-            }
-        });
-
-        // 更新分类树状态
-        document.querySelectorAll('.tree-item').forEach(item => {
-            item.classList.remove('active');
-            if (item.dataset.category === category) {
-                item.classList.add('active');
-            }
-        });
-
-        this.currentCategory = category;
-        this.currentPage = 1;
-        this.updateSectionTitle();
-        this.loadNews();
+    renderError(msg) {
+        this.feedEl.innerHTML = `
+            <div class="error-state">
+                <p>${this.escapeHtml(msg)}</p>
+                <button class="retry-btn" onclick="window.NewsManager.loadNews()">重试</button>
+            </div>
+        `;
     }
 
-    handleSearch() {
-        const searchInput = document.getElementById('searchInput');
-        this.searchQuery = searchInput.value.trim();
-        this.currentPage = 1;
-        this.loadNews();
+    // ----- 工具函数 -----
+    scoreClass(score) {
+        const clamped = Math.max(0, Math.min(10, Math.round(score)));
+        return `score-${clamped}`;
     }
 
-    switchView(view) {
-        this.viewMode = view;
-        
-        // 更新按钮状态
-        document.querySelectorAll('.view-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.view === view);
-        });
-        
-        // 重新渲染新闻
-        this.renderNews();
-    }
-
-    goToPage(page) {
-        this.currentPage = page;
-        this.loadNews();
-    }
-
-    updatePagination() {
-        const prevBtn = document.getElementById('prevPage');
-        const nextBtn = document.getElementById('nextPage');
-        const pageInfo = document.getElementById('pageInfo');
-        
-        prevBtn.disabled = this.currentPage === 1;
-        nextBtn.disabled = this.currentPage >= this.totalPages;
-        pageInfo.textContent = `第 ${this.currentPage} 页`;
-    }
-
-    updateSectionTitle() {
-        const title = document.getElementById('sectionTitle');
-        if (this.currentCategory === 'all') {
-            title.textContent = '最新新闻';
-        } else {
-            title.textContent = `${this.currentCategory} 新闻`;
-        }
-    }
-
-    async showNewsDetail(newsId) {
+    formatTime(timeStr) {
+        if (!timeStr) return '';
         try {
-            const news = await window.API.getNewsById(newsId);
-            this.showNewsModal(news);
-        } catch (error) {
-            console.error('获取新闻详情失败:', error);
-            this.showError('获取新闻详情失败');
+            const date = new Date(timeStr);
+            const now = new Date();
+            const diff = now - date;
+            if (diff < 0) return '';
+            if (diff < 60000) return '刚刚';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+            if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`;
+            return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+        } catch (_) {
+            return timeStr;
         }
     }
 
-    showNewsModal(news) {
-        const modal = document.getElementById('newsModal');
-        
-        document.getElementById('modalTitle').textContent = news.title;
-        document.getElementById('modalAuthor').textContent = `作者: ${news.author}`;
-        document.getElementById('modalDate').textContent = `发布时间: ${news.publish_time}`;
-        document.getElementById('modalSource').textContent = `来源: ${news.source}`;
-        document.getElementById('modalCategory').textContent = news.category;
-        document.getElementById('modalContent').innerHTML = news.content.replace(/\n/g, '<br>');
-        document.getElementById('modalLink').href = news.url;
-        
-        // 渲染标签
-        const tagsContainer = document.getElementById('modalTags');
-        tagsContainer.innerHTML = news.tags.map(tag => 
-            `<span class="news-tag">${tag}</span>`
-        ).join('');
-        
-        modal.classList.add('show');
-        
-        // 绑定关闭事件
-        document.getElementById('closeModal').onclick = () => {
-            modal.classList.remove('show');
-        };
-        
-        modal.onclick = (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('show');
-            }
-        };
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 
-    refreshNews() {
-        this.loadNews();
-        this.showSuccess('新闻已刷新');
-    }
-
-    setLoading(loading) {
-        this.loading = loading;
-        const container = document.getElementById('newsContainer');
-        
-        if (loading) {
-            container.innerHTML = `
-                <div class="loading-spinner">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>正在加载新闻...</p>
-                </div>
-            `;
-        }
-    }
-
-    formatTime(timeString) {
-        const date = new Date(timeString);
-        const now = new Date();
-        const diff = now - date;
-        
-        if (diff < 60000) {
-            return '刚刚';
-        } else if (diff < 3600000) {
-            return `${Math.floor(diff / 60000)} 分钟前`;
-        } else if (diff < 86400000) {
-            return `${Math.floor(diff / 3600000)} 小时前`;
-        } else {
-            return date.toLocaleDateString('zh-CN');
-        }
-    }
-
-    showSuccess(message) {
-        this.showNotification(message, 'success');
-    }
-
-    showError(message) {
-        this.showNotification(message, 'error');
-    }
-
-    showNotification(message, type = 'info') {
-        // 统一委托给 UIManager，避免重复实现与空元素问题
-        if (window.UIManager && typeof window.UIManager.showNotification === 'function') {
-            window.UIManager.showNotification(message, type, 3000);
-            return;
-        }
-        // 后备：简单创建并显示通知（仅在 UIManager 不可用时）
-        let notification = document.getElementById('notification');
-        if (!notification) {
-            notification = document.createElement('div');
-            notification.id = 'notification';
-            notification.className = 'notification';
-            notification.innerHTML = `
-                <div class="notification-content">
-                    <i class="notification-icon"></i>
-                    <span class="notification-text"></span>
-                </div>
-            `;
-            (document.getElementById('app') || document.body).appendChild(notification);
-        }
-        const icon = notification.querySelector('.notification-icon');
-        const text = notification.querySelector('.notification-text');
-        const iconMap = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-exclamation-circle',
-            warning: 'fas fa-exclamation-triangle',
-            info: 'fas fa-info-circle'
-        };
-        icon.className = iconMap[type] || iconMap.info;
-        text.textContent = message;
-        notification.className = `notification ${type} show`;
-        setTimeout(() => {
-            notification.classList.remove('show');
-        }, 3000);
+    // ----- 示例数据 -----
+    getSampleNews() {
+        return [
+            { title: '中国成功发射新一代载人飞船 开启深空探测新篇章', source: '新华网', publish_time: new Date(Date.now() - 30*60000).toISOString(), significance_score: 8.7, url: '#' },
+            { title: '全球AI峰会在北京开幕 多国领导人出席', source: '人民网', publish_time: new Date(Date.now() - 120*60000).toISOString(), significance_score: 8.2, url: '#' },
+            { title: '世卫组织宣布新型疫苗研发取得重大突破', source: 'Reuters', publish_time: new Date(Date.now() - 180*60000).toISOString(), significance_score: 7.9, url: '#' },
+            { title: '央行宣布降准0.5个百分点 释放长期资金约1万亿', source: '财经网', publish_time: new Date(Date.now() - 240*60000).toISOString(), significance_score: 7.5, url: '#' },
+            { title: '国际空间站新模块成功对接 中国实验舱投入使用', source: 'BBC News', publish_time: new Date(Date.now() - 360*60000).toISOString(), significance_score: 7.1, url: '#' },
+            { title: '欧盟通过新气候法案 2030年碳排放减半', source: 'Reuters', publish_time: new Date(Date.now() - 480*60000).toISOString(), significance_score: 6.8, url: '#' },
+            { title: '新型量子计算机运算速度创纪录 超越经典超算', source: '科技日报', publish_time: new Date(Date.now() - 600*60000).toISOString(), significance_score: 6.4, url: '#' },
+            { title: '全球半导体供应链重塑 多国加大本土芯片投资', source: 'FT中文网', publish_time: new Date(Date.now() - 720*60000).toISOString(), significance_score: 6.1, url: '#' },
+            { title: '联合国报告：全球可再生能源投资首超化石燃料', source: 'AP News', publish_time: new Date(Date.now() - 900*60000).toISOString(), significance_score: 5.7, url: '#' },
+            { title: 'SpaceX星舰第五飞成功 实现超重型火箭回收里程碑', source: 'TechCrunch', publish_time: new Date(Date.now() - 1080*60000).toISOString(), significance_score: 5.3, url: '#' },
+            { title: '东京奥运会主体育场改造完成 将承办2027田径世锦赛', source: '朝日新闻', publish_time: new Date(Date.now() - 1200*60000).toISOString(), significance_score: 4.5, url: '#' },
+            { title: '电影《流浪地球3》定档 导演透露将采用全AI特效', source: '新浪娱乐', publish_time: new Date(Date.now() - 1440*60000).toISOString(), significance_score: 3.8, url: '#' },
+        ];
     }
 }
 
-// 创建新闻管理器实例
 document.addEventListener('DOMContentLoaded', () => {
     window.NewsManager = new NewsManager();
 });

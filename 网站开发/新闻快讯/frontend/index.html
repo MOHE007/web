@@ -3,195 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>新闻快讯 - 智能新闻聚合平台</title>
+    <title>瓦卡拉NEWs — AI 精选重要新闻</title>
+    <meta name="description" content="瓦卡拉NEWs 是一个AI驱动的新闻聚合器，用 AI 为每日新闻打分排序，只展示真正值得阅读的重要新闻。">
+    <meta name="keywords" content="新闻,AI,精选,极简,重要新闻,天下大事,每日新闻">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f172a">
     <link rel="stylesheet" href="styles/main.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- 生产网关地址注入（Cloudflare 代理 GitHub Pages 场景） -->
     <script>
         window.__API_BASE__ = window.__API_BASE__ || 'https://api.wakolanews.online';
     </script>
 </head>
 <body>
     <div id="app">
-        <!-- 导航栏 -->
-        <nav class="navbar">
-            <div class="nav-container">
-                <div class="nav-brand">
-                    <img src="assets/logo.svg" alt="wakolaNews logo" class="nav-logo">
-                    <span>瓦卡拉NEWs</span>
-                </div>
-                <div class="nav-menu">
-                    <a href="#" class="nav-link active" data-category="all">全部</a>
-                    <a href="#" class="nav-link" data-category="科技">科技</a>
-                    <a href="#" class="nav-link" data-category="财经">财经</a>
-                    <a href="#" class="nav-link" data-category="体育">体育</a>
-                    <a href="#" class="nav-link" data-category="娱乐">娱乐</a>
-                </div>
-                <div class="nav-actions">
-                    <div class="search-box">
-                        <input type="text" id="searchInput" placeholder="搜索新闻...">
-                        <button id="searchBtn"><i class="fas fa-search"></i></button>
-                    </div>
-                    <button class="refresh-btn" id="refreshBtn">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                </div>
+        <header class="site-header">
+            <div class="container">
+                <a href="/" class="logo">瓦卡拉NEWs</a>
             </div>
-        </nav>
+        </header>
 
-        <!-- 主要内容区域 -->
         <main class="main-content">
-            <!-- 侧边栏 -->
-            <aside class="sidebar">
-                <div class="category-tree">
-                    <h3>分类导航</h3>
-                    <div id="categoryTree" class="tree-container">
-                        <!-- 分类树将通过JavaScript动态加载 -->
-                    </div>
-                </div>
-                
-                <div class="hot-topics">
-                    <h3>热门话题</h3>
-                    <div id="hotTopics" class="topics-list">
-                        <!-- 热门话题将通过JavaScript动态加载 -->
-                    </div>
-                </div>
-            </aside>
-
-            <!-- 新闻列表区域 -->
-            <section class="news-section">
-                <div class="section-header">
-                    <h2 id="sectionTitle">最新新闻</h2>
-                    <div class="view-options">
-                        <button class="view-btn active" data-view="grid">
-                            <i class="fas fa-th"></i>
-                        </button>
-                        <button class="view-btn" data-view="list">
-                            <i class="fas fa-list"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div id="newsContainer" class="news-container">
-                    <!-- 新闻列表将通过JavaScript动态加载 -->
+            <div class="container">
+                <div id="news-feed" class="news-feed">
                     <div class="loading-spinner">
-                        <i class="fas fa-spinner fa-spin"></i>
+                        <div class="spinner"></div>
                         <p>正在加载新闻...</p>
                     </div>
                 </div>
-
-                <div class="pagination">
-                    <button id="prevPage" class="page-btn" disabled>
-                        <i class="fas fa-chevron-left"></i> 上一页
-                    </button>
-                    <span id="pageInfo" class="page-info">第 1 页</span>
-                    <button id="nextPage" class="page-btn">
-                        下一页 <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-            </section>
+            </div>
         </main>
 
-        <!-- 新闻详情模态框 -->
-        <div id="newsModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3 id="modalTitle"></h3>
-                    <button class="close-btn" id="closeModal">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="news-meta">
-                        <span id="modalAuthor"></span>
-                        <span id="modalDate"></span>
-                        <span id="modalSource"></span>
-                        <span id="modalCategory" class="category-tag"></span>
-                    </div>
-                    <div id="modalContent" class="news-content"></div>
-                    <div id="modalTags" class="news-tags"></div>
-                </div>
-                <div class="modal-footer">
-                    <a id="modalLink" href="#" target="_blank" class="read-more-btn">
-                        阅读原文 <i class="fas fa-external-link-alt"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
+        <footer class="site-footer">
+            <div class="container">
+                <hr class="footer-divider">
 
-        <!-- 处理新闻URL模态框 -->
-        <div id="processModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>处理新闻URL</h3>
-                    <button class="close-btn" id="closeProcessModal">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="newsUrl">新闻URL:</label>
-                        <input type="url" id="newsUrl" placeholder="请输入新闻URL...">
-                    </div>
-                    <div class="form-group">
-                        <label>处理选项:</label>
-                        <div class="radio-group">
-                            <label class="radio-option">
-                                <input type="radio" name="processType" value="full" checked>
-                                <span>完整处理 (采集+解析+清洗)</span>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="processType" value="collect">
-                                <span>仅采集</span>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="processType" value="parse">
-                                <span>仅解析</span>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="processType" value="clean">
-                                <span>仅清洗</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button id="processNewsBtn" class="process-btn">
-                        <i class="fas fa-cogs"></i> 开始处理
-                    </button>
-                </div>
-            </div>
-        </div>
+                <h4>什么是瓦卡拉NEWs？</h4>
+                <p>它是唯一一个按**重要性**给新闻排名的新闻聚合器。</p>
+                <p>它使用 AI 每天阅读和分析约 3 万篇新闻文章，并为它们打分（0-10 分）。</p>
+                <p>得分 0-3 的文章通常是体育、娱乐和小型本地新闻。得分 5+ 的文章涵盖塑造世界的重大事件。</p>
+                <p>为了提供全球视野，新闻以 12 种最常用的语言收集。</p>
 
-        <!-- 浮动操作按钮 -->
-        <div class="fab-container">
-            <button class="fab-main" id="mainFab">
-                <i class="fas fa-plus"></i>
-            </button>
-            <div class="fab-options">
-                <button class="fab-option" id="addNewsBtn" title="添加新闻">
-                    <i class="fas fa-newspaper"></i>
-                </button>
-                <button class="fab-option" id="processUrlBtn" title="处理URL">
-                    <i class="fas fa-link"></i>
-                </button>
-            </div>
-        </div>
+                <h4>为什么？</h4>
+                <p>我想为自己打造一个系统——过滤掉日常噪音，只保留真正值得阅读的最小量新闻。</p>
+                <p>结果发现很多人也想要这个。</p>
+                <blockquote>
+                    <p>这是我见过的最佳 AI 项目，因为你用它来限制海量耸人听闻的注意力争夺内容，而不是增加更多噪音。</p>
+                    <cite>— 知乎用户</cite>
+                </blockquote>
 
-        <!-- 通知系统 -->
-        <div id="notification" class="notification">
-            <div class="notification-content">
-                <i class="notification-icon"></i>
-                <span class="notification-text"></span>
+                <h4>如何阅读？</h4>
+                <p>最简单的方式就是直接访问本页——每次打开都会看到最新精选的重要新闻。</p>
+
+                <h4>想要更多控制？</h4>
+                <p>每个人都有相同的内容。如果你想自定义分类、国家和话题过滤器，请联系我们获取高级版。</p>
+
+                <hr class="footer-divider">
+
+                <div class="footer-links">
+                    <a href="/about">关于</a>
+                    <a href="mailto:hello@wakolanews.online">联系</a>
+                </div>
+                <p class="footer-made">Made with ❤️</p>
             </div>
-        </div>
+        </footer>
     </div>
 
     <script src="js/api.js"></script>
     <script src="js/news.js"></script>
-    <script src="js/category.js"></script>
-    <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
