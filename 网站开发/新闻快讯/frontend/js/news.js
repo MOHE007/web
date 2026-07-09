@@ -11,6 +11,14 @@ class NewsManager {
         this.feedEl = document.getElementById('news-feed');
         this.renderLoading();
         await this.loadNews();
+        this.startAutoRefresh();
+    }
+
+    // 每 5 分钟自动刷新
+    startAutoRefresh() {
+        setInterval(() => {
+            this.loadNews();
+        }, 5 * 60 * 1000);
     }
 
     waitForAPI() {
