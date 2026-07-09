@@ -30,7 +30,15 @@ jobs:
       - name: Commit & push news.json
         run: |
           git config user.name "wakanews-bot"
-          git config user.email "bot@wakolanews.online"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "网站开发/新闻快讯/frontend/news.json"
-          git diff --cached --quiet || \
-            (git commit -m "auto: update news data [$(date +'%Y-%m-%d %H:%M' UTC)]" && git push)
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "auto: update news data [$(date -u +'%Y-%m-%d %H:%M UTC')]"
+            echo "Pushing to origin..."
+            git push origin HEAD:${{ github.ref }}
+            echo "Push successful."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
