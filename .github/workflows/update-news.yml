@@ -1,0 +1,36 @@
+name: Update News Data
+
+on:
+  schedule:
+    # 每 6 小时运行一次（UTC 时间，北京时间 +8）
+    - cron: '0 */6 * * *'
+  workflow_dispatch:  # 支持手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4 lxml
+
+      - name: Run news scraper
+        run: |
+          python scripts/fetch_news.py
+
+      - name: Commit & push news.json
+        run: |
+          git config user.name "wakanews-bot"
+          git config user.email "bot@wakolanews.online"
+          git add "网站开发/新闻快讯/frontend/news.json"
+          git diff --cached --quiet || \
+            (git commit -m "auto: update news data [$(date +'%Y-%m-%d %H:%M' UTC)]" && git push)
